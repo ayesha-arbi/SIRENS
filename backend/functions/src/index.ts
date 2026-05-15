@@ -1,6 +1,10 @@
-import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+<<<<<<< HEAD
 import { CitizenProfile, AlertPreferences, Report, Poll } from "./types";
+=======
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { CitizenProfile, AlertPreferences } from "./types";
+>>>>>>> 3e556d4b72ce79ce561b5ddbceeb70d60fc6a56a
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -174,22 +178,27 @@ export const getPersonalizedFeed = functions.https.onCall(async (data, context) 
 });
 
 /**
+<<<<<<< HEAD
  * Interface to initialize a user profile in the 'citizens' collection.
+=======
+ * Initialize a user profile in the 'citizens' collection.
+ * Triggered after successful Firebase Auth signup.
+>>>>>>> 3e556d4b72ce79ce561b5ddbceeb70d60fc6a56a
  */
-export const initializeUserProfile = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
+export const initializeUserProfile = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const uid = context.auth.uid;
-  const email = context.auth.token.email || "";
+  const uid = request.auth.uid;
+  const email = request.auth.token.email || "";
 
   const initialProfile: Partial<CitizenProfile> = {
     uid,
     email,
     onboardingComplete: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
   };
 
   try {
@@ -197,30 +206,30 @@ export const initializeUserProfile = functions.https.onCall(async (data, context
     return { success: true, message: "User profile initialized." };
   } catch (error) {
     console.error("Error initializing user profile:", error);
-    throw new functions.https.HttpsError("internal", "Failed to initialize user profile.");
+    throw new HttpsError("internal", "Failed to initialize user profile.");
   }
 });
 
 /**
- * Interface to update onboarding data (City, District, Locations).
+ * Update onboarding data (City, District, Locations).
  */
-export const updateOnboardingData = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
+export const updateOnboardingData = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const uid = context.auth.uid;
+  const uid = request.auth.uid;
   const {
     city,
     district,
     homeLocation,
     workLocation,
     frequentAreas,
-    onboardingComplete
-  } = data;
+    onboardingComplete,
+  } = request.data;
 
   if (!city || !district) {
-    throw new functions.https.HttpsError("invalid-argument", "City and District are required.");
+    throw new HttpsError("invalid-argument", "City and District are required.");
   }
 
   const updates: Partial<CitizenProfile> = {
@@ -230,7 +239,7 @@ export const updateOnboardingData = functions.https.onCall(async (data, context)
     workLocation,
     frequentAreas,
     onboardingComplete,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp() as unknown as Date,
   };
 
   try {
@@ -238,20 +247,20 @@ export const updateOnboardingData = functions.https.onCall(async (data, context)
     return { success: true, message: "Onboarding data updated." };
   } catch (error) {
     console.error("Error updating onboarding data:", error);
-    throw new functions.https.HttpsError("internal", "Failed to update onboarding data.");
+    throw new HttpsError("internal", "Failed to update onboarding data.");
   }
 });
 
 /**
- * Interface to update user alert preferences.
+ * Update user alert preferences.
  */
-export const setAlertPreferences = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated.");
+export const setAlertPreferences = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated.");
   }
 
-  const uid = context.auth.uid;
-  const { preferences }: { preferences: AlertPreferences } = data;
+  const uid = request.auth.uid;
+  const { preferences }: { preferences: AlertPreferences } = request.data;
 
   try {
     await db.collection("citizens").doc(uid).set({
@@ -261,6 +270,6 @@ export const setAlertPreferences = functions.https.onCall(async (data, context) 
     return { success: true, message: "Preferences updated." };
   } catch (error) {
     console.error("Error updating preferences:", error);
-    throw new functions.https.HttpsError("internal", "Failed to update preferences.");
+    throw new HttpsError("internal", "Failed to update preferences.");
   }
 });
