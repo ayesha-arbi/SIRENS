@@ -13,5 +13,9 @@
     "**/*.ts",
     "**/*.tsx",
     "declarations.d.ts"
+  ],
+  "exclude": [
+    "backend/**",
+    "node_modules"
   ]
 }
