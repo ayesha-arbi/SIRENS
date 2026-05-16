@@ -1,9 +1,5 @@
-import { Timestamp, FieldValue, GeoPoint } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
-// Re-export GeoPoint from firebase-admin so the rest of the backend uses the real Firestore type
-// instead of a plain JS object. This ensures Firestore geo-queries work correctly and the
-// Firestore console displays values as GeoPoints, not generic Maps.
-export { GeoPoint };
 
 /**
  * Interface for the Citizen's personalized profile in the 'citizens' collection.
@@ -11,12 +7,13 @@ export { GeoPoint };
 export interface CitizenProfile {
   uid: string;
   email: string;
-  city: string;
-  district: string;
-  homeLocation: LocationDetails;
-  workLocation: LocationDetails;
-  frequentAreas: LocationDetails[];
-  preferences: AlertPreferences;
+  // Set during onboarding — optional until onboardingComplete is true.
+  city?: string;
+  district?: string;
+  homeLocation?: LocationDetails;
+  workLocation?: LocationDetails;
+  frequentAreas?: LocationDetails[];
+  preferences?: AlertPreferences;
   onboardingComplete: boolean;
   createdAt: Timestamp | FieldValue;
   updatedAt: Timestamp | FieldValue;
@@ -42,9 +39,9 @@ export interface Report {
   userId: string;
   imageUrl: string;
   category: 'accident' | 'fire' | 'weather' | 'traffic' | 'other';
-  description: string;
-  location: GeoPoint;
-  areaName: string;
+  description?: string;   // optional — not always provided by the citizen
+  location: FirebaseFirestore.GeoPoint;
+  areaName?: string;      // optional — may be reverse-geocoded later
   city: string;
   timestamp: Timestamp | FieldValue;
   status: 'active' | 'expired' | 'resolved';
