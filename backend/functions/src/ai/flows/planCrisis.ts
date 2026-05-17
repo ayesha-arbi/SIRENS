@@ -2,7 +2,7 @@ import { ai } from '../genkit';
 import { NormalizedCrisisSchema, Agent2OutputSchema } from '../schemas';
 import * as admin from 'firebase-admin';
 
-import { AGENT2_SYSTEM_PROMPT } from '../prompts/agent2Rules';
+import { AGENT2_BASE_PROMPT, CRISIS_SKILLS } from '../prompts/agent2Rules';
 
 const db = admin.firestore();
 
@@ -39,7 +39,13 @@ export const planCrisis = ai.defineFlow(
       authoritiesMap[data.crisisType] = data.name;
     });
 
+    // ── 2. Select the specific skill rule for this crisis type ──
+    const specificSkillRule = CRISIS_SKILLS[crisis.crisisType] || CRISIS_SKILLS['none'];
+
     const dynamicContext = `
+SPECIFIC CRISIS SKILL RULE TO APPLY:
+${specificSkillRule}
+
 AVAILABLE RESOURCES:
 Rescue Teams: ${JSON.stringify(availableRescueTeams.length ? availableRescueTeams : 'None currently available')}
 Medical Units: ${JSON.stringify(availableMedicalUnits.length ? availableMedicalUnits : 'None currently available')}
@@ -70,7 +76,7 @@ Authorities: ${JSON.stringify(authoritiesMap)}
 
     const response = await ai.generate({
       prompt: `
-${AGENT2_SYSTEM_PROMPT}
+${AGENT2_BASE_PROMPT}
 
 ${dynamicContext}
 

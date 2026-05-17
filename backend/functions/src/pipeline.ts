@@ -4,6 +4,7 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import { classifySignals } from './ai/flows/classifySignals';
 import { planCrisis } from './ai/flows/planCrisis';
+import { executePlan } from './ai/flows/executePlan';
 
 const db = admin.firestore();
 
@@ -226,10 +227,21 @@ export const crisisDetectionLoop = onSchedule(
           ...crisis,
           city,
           agent2Plan: actionPlan,
-          status: 'active',
+          status: 'planned',
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         console.log(`[Agent 2] Plan saved for ${city}: ${crisisRef.id}`);
+
+        // Run Agent 3
+        console.log(`[Agent 3] Executing plan for ${crisisRef.id}...`);
+        await executePlan({
+          crisisId: crisisRef.id,
+          crisisType: crisis.crisisType,
+          city: city,
+          affectedArea: crisis.affectedArea,
+          plan: actionPlan,
+        });
+        console.log(`[Agent 3] Execution complete for ${crisisRef.id}`);
       } else {
         console.log(`Low confidence (${crisis.credibilityScore}) in ${city}. Alert sent, pipeline stopped.`);
       }
