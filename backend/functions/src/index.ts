@@ -284,3 +284,14 @@ export const setAlertPreferences = onCall(async (request) => {
     throw new HttpsError("internal", "Failed to update preferences.");
   }
 });
+
+// ============================================================================
+// AGENTIC AI PIPELINE (Genkit)
+// ============================================================================
+export * from "./ai/index";
+
+// ============================================================================
+// DATA COLLECTION + ORCHESTRATION (Scheduled Functions + Firestore Triggers)
+// ============================================================================
+export * from "./pipeline";
+
