@@ -7,6 +7,39 @@
         { "fieldPath": "city", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "raw_signals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "raw_signals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "source", "order": "ASCENDING" },
+        { "fieldPath": "newsTitle", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "raw_signals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "processed", "order": "ASCENDING" },
+        { "fieldPath": "processAfter", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "citizens",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "city", "order": "ASCENDING" },
+        { "fieldPath": "onboardingComplete", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

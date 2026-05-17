@@ -1,0 +1,104 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper: Is the request from an authenticated user? ──
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // ── Helper: Is the user the document owner? ──
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // ── Citizens (user profiles) ──
+    match /citizens/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.uid is string
+        && request.resource.data.uid == uid;
+      allow update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        // Prevent users from changing their own UID
+        && request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
+    }
+
+    // ── Reports (citizen-submitted crisis reports) ──
+    match /reports/{reportId} {
+      // Any authenticated user can read reports (for the feed)
+      allow read: if isAuth();
+      // Only authenticated users can create, and userId must match
+      allow create: if isAuth()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.city is string
+        && request.resource.data.city.size() > 0
+        && request.resource.data.category is string;
+      // No client updates or deletes — managed by Cloud Functions
+      allow update, delete: if false;
+    }
+
+    // ── Polls ──
+    match /polls/{pollId} {
+      allow read: if isAuth();
+      // Created only by Cloud Functions (via batch with report)
+      allow create: if false;
+      // Votes are submitted via the callable function, not direct writes
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── Notifications (personalized alerts) ──
+    match /notifications/{notifId} {
+      // Users can only read their own notifications
+      allow read: if isAuth()
+        && resource.data.userId == request.auth.uid;
+      // Created only by Cloud Functions (pipeline.ts)
+      allow create: if false;
+      // Users can mark their own notifications as read
+      allow update: if isAuth()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if false;
+    }
+
+    // ── Alerts (public crisis alerts) ──
+    match /alerts/{alertId} {
+      // Any authenticated user can read public alerts
+      allow read: if isAuth();
+      // Created/managed only by Cloud Functions
+      allow create, update, delete: if false;
+    }
+
+    // ── Crises (Agent pipeline output) ──
+    match /crises/{crisisId} {
+      allow read: if isAuth();
+      allow create, update, delete: if false;
+    }
+
+    // ── Agent Traces (reasoning logs for hackathon) ──
+    match /agent_traces/{traceId} {
+      allow read: if isAuth();
+      allow create, update, delete: if false;
+    }
+
+    // ── Impacts (Agent 5 output) ──
+    match /impacts/{impactId} {
+      allow read: if isAuth();
+      allow create, update, delete: if false;
+    }
+
+    // ── Raw Signals (internal pipeline data) ──
+    match /raw_signals/{signalId} {
+      // No client access at all — backend only
+      allow read, write: if false;
+    }
+
+    // ── Catch-all: deny everything not explicitly matched ──
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

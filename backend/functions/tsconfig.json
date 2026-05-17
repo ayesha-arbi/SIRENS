@@ -7,11 +7,12 @@
     "rootDir": "src",
     "sourceMap": true,
     "strict": true,
-    "target": "es2018",
+    "target": "es2022",
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
   "compileOnSave": true,
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/test-*.ts"]
 }
