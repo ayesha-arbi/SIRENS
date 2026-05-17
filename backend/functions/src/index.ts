@@ -294,4 +294,5 @@ export * from "./ai/index";
 // DATA COLLECTION + ORCHESTRATION (Scheduled Functions + Firestore Triggers)
 // ============================================================================
 export * from "./pipeline";
+export * from "./verificationLoop";
 
