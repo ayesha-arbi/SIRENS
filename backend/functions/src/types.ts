@@ -55,3 +55,22 @@ export interface Poll {
   noVotes: string[]; // Array of UIDs
   createdAt: Timestamp | FieldValue;
 }
+
+export interface SOSSignal {
+  sosId: string;
+  userId: string;
+  location: FirebaseFirestore.GeoPoint;
+  message: string;
+  status: 'pending' | 'dispatched' | 'resolved';
+  timestamp: Timestamp | FieldValue;
+}
+
+export interface OfficialAlert {
+  alertId: string;
+  title: string;
+  message: string;
+  city: string;
+  severity: 'low' | 'medium' | 'high';
+  active: boolean;
+  timestamp: Timestamp | FieldValue;
+}

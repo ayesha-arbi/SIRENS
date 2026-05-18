@@ -36,7 +36,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setAlertPreferences = exports.updateOnboardingData = exports.initializeUserProfile = exports.getPersonalizedFeed = exports.submitPollVote = exports.createCommunityReport = exports.getUploadUrl = void 0;
+exports.triggerImpactEvaluation = exports.setAlertPreferences = exports.updateOnboardingData = exports.initializeUserProfile = exports.getPersonalizedFeed = exports.submitPollVote = exports.createCommunityReport = exports.getUploadUrl = void 0;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 if (!admin.apps.length) {
@@ -268,6 +268,47 @@ exports.setAlertPreferences = (0, https_1.onCall)(async (request) => {
     catch (error) {
         console.error("Error updating preferences:", error);
         throw new https_1.HttpsError("internal", "Failed to update preferences.");
+    }
+});
+// ============================================================================
+// AGENT 5 TRIGGER (Called from Authority Dashboard)
+// ============================================================================
+exports.triggerImpactEvaluation = (0, https_1.onCall)(async (request) => {
+    const { crisisId } = request.data;
+    if (!crisisId) {
+        throw new https_1.HttpsError("invalid-argument", "crisisId is required");
+    }
+    const crisisDoc = await db.collection("crises").doc(crisisId).get();
+    if (!crisisDoc.exists) {
+        throw new https_1.HttpsError("not-found", "Crisis not found");
+    }
+    const crisisData = crisisDoc.data();
+    // Gather fresh signals (weather and community reports from the last hour for this city)
+    const oneHourAgo = new Date();
+    oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+    const freshSignalsSnap = await db.collection("raw_signals")
+        .where("city", "==", crisisData.city)
+        .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(oneHourAgo))
+        .get();
+    const freshSignals = freshSignalsSnap.docs.map(d => d.data().text);
+    // Extract actions taken from the plan
+    const actionsTaken = crisisData.agent2Plan?.actionPlan?.map((item) => `${item.action} at ${item.target || item.authority}`) || [];
+    // Dynamically import Agent 5 to avoid Firebase initialization race conditions
+    const { evaluateImpact } = await Promise.resolve().then(() => __importStar(require("./ai/flows/evaluateImpact")));
+    try {
+        const result = await evaluateImpact({
+            crisisId,
+            originalSeverity: crisisData.severity,
+            originalAffectedArea: crisisData.affectedArea,
+            city: crisisData.city,
+            actionsTaken,
+            freshSignals
+        });
+        return { success: true, result };
+    }
+    catch (e) {
+        console.error("Agent 5 Evaluation Failed:", e);
+        throw new https_1.HttpsError("internal", "Agent 5 failed to evaluate impact");
     }
 });
 // ============================================================================
