@@ -278,4 +278,5 @@ __exportStar(require("./ai/index"), exports);
 // DATA COLLECTION + ORCHESTRATION (Scheduled Functions + Firestore Triggers)
 // ============================================================================
 __exportStar(require("./pipeline"), exports);
+__exportStar(require("./verificationLoop"), exports);
 //# sourceMappingURL=index.js.map

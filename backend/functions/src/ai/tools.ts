@@ -120,3 +120,101 @@ export const requestVerificationTool = ai.defineTool(
     return { success: true, message: `Verification request broadcasted to citizens in ${input.areaName}.` };
   }
 );
+
+// ── 6. UPDATE MAP TOOL ───────────────────────────────────────────────────────
+export const updateMapTool = ai.defineTool(
+  {
+    name: 'updateMap',
+    description: 'Shrinks or clears a danger zone on the live map after crisis resolution.',
+    inputSchema: z.object({
+      crisisId: z.string(),
+      action: z.enum(['shrink_danger_zone', 'clear_danger_zone']),
+      targetArea: z.string(),
+      newRadiusKm: z.number(),
+    }),
+  },
+  async (input) => {
+    const snap = await db.collection('danger_zones')
+      .where('crisisId', '==', input.crisisId)
+      .get();
+
+    const batch = db.batch();
+    snap.docs.forEach(doc => {
+      if (input.action === 'clear_danger_zone') {
+        batch.update(doc.ref, { active: false });
+      } else {
+        batch.update(doc.ref, { newRadiusKm: input.newRadiusKm });
+      }
+    });
+    await batch.commit();
+
+    return { success: true, message: `Danger zone ${input.action} for ${input.targetArea}.` };
+  }
+);
+
+// ── 7. RESOLVE CRISIS TOOL ───────────────────────────────────────────────────
+export const resolveCrisisTool = ai.defineTool(
+  {
+    name: 'resolveCrisis',
+    description: 'Marks a crisis as resolved and frees up all assigned resources.',
+    inputSchema: z.object({
+      crisisId: z.string(),
+      effectivenessScore: z.number(),
+      impactSummary: z.string(),
+    }),
+  },
+  async (input) => {
+    // Mark crisis resolved
+    await db.collection('crises').doc(input.crisisId).set({
+      status: 'resolved',
+      effectivenessScore: input.effectivenessScore,
+      impactSummary: input.impactSummary,
+      resolvedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // Free up all resources assigned to this crisis
+    const resourcesSnap = await db.collection('resources')
+      .where('currentAssignment', '==', input.crisisId)
+      .get();
+
+    const batch = db.batch();
+    resourcesSnap.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        available: true,
+        currentAssignment: null,
+        destination: null,
+      });
+    });
+    await batch.commit();
+
+    return { success: true, message: `Crisis ${input.crisisId} resolved. Resources freed.` };
+  }
+);
+
+// ── 8. SEND UPDATE ALERT TOOL ────────────────────────────────────────────────
+export const sendUpdateAlertTool = ai.defineTool(
+  {
+    name: 'sendUpdateAlert',
+    description: 'Sends a resolution notification to citizens letting them know the crisis is handled.',
+    inputSchema: z.object({
+      crisisId: z.string(),
+      city: z.string(),
+      affectedArea: z.string(),
+      publicUpdate: z.string(),
+    }),
+  },
+  async (input) => {
+    await db.collection('alerts').add({
+      type: 'resolution',
+      crisisId: input.crisisId,
+      city: input.city,
+      affectedArea: input.affectedArea,
+      title: `✅ Situation Update — ${input.affectedArea}`,
+      message: input.publicUpdate,
+      active: true,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { success: true, message: `Resolution alert sent for ${input.affectedArea}.` };
+  }
+);

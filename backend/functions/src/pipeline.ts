@@ -317,3 +317,50 @@ export async function sendPersonalizedAlert(
   await batch.commit();
   console.log(`Sent ${alertCount} personalized alerts for ${crisis.crisisType} in ${city}.`);
 }
+
+
+// =============================================================================
+// 5. AGENT 5 TRIGGER — 2 hours after crisis starts
+//    Automatically evaluates impact of response actions.
+// =============================================================================
+export const evaluateCrisisImpact = onSchedule('every 60 minutes', async () => {
+
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+  // Find active crises older than 2 hours
+  const crisesSnap = await db.collection('crises')
+    .where('status', '==', 'executing')
+    .where('createdAt', '<=', admin.firestore.Timestamp.fromDate(twoHoursAgo))
+    .get();
+
+  if (crisesSnap.empty) {
+    console.log('No crises ready for impact evaluation.');
+    return;
+  }
+
+  for (const doc of crisesSnap.docs) {
+    const crisis = doc.data();
+
+    // Get fresh signals from last 30 minutes
+    const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const freshSnap = await db.collection('raw_signals')
+      .where('city', '==', crisis.city)
+      .where('createdAt', '>=', admin.firestore.Timestamp.fromDate(thirtyMinsAgo))
+      .get();
+
+    const freshSignals = freshSnap.docs.map(d => d.data().text);
+    const actionsTaken = crisis.agent2Plan?.actionPlan?.map((a: any) => a.action) || [];
+
+    const { evaluateImpact } = await import('./ai/flows/evaluateImpact');
+    await evaluateImpact({
+      crisisId: doc.id,
+      originalSeverity: crisis.severity,
+      originalAffectedArea: crisis.affectedArea,
+      city: crisis.city,
+      actionsTaken,
+      freshSignals: freshSignals.length ? freshSignals : ['No new signals — situation unchanged'],
+    });
+
+    console.log(`[Agent 5] Evaluated impact for crisis ${doc.id}`);
+  }
+});

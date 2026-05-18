@@ -72,3 +72,26 @@ export const Agent2OutputSchema = z.object({
   assignedMedicalUnit: z.string().nullable().describe('Name of medical unit assigned, if any'),
   authorityToNotify: z.string().nullable().describe('Name of authority to notify, if any'),
 });
+
+
+// ─── Agent 5 Input/Output ─────────────────────────────────────────────────────
+export const Agent5InputSchema = z.object({
+  crisisId: z.string(),
+  originalSeverity: z.enum(['low', 'medium', 'high', 'critical']),
+  originalAffectedArea: z.string(),
+  city: z.string(),
+  actionsTaken: z.array(z.string()),
+  freshSignals: z.array(z.string()),
+});
+
+export const Agent5OutputSchema = z.object({
+  effectivenessScore: z.number().min(0).max(1),
+  impactSummary: z.string(),
+  mapUpdates: z.array(z.object({
+    action: z.enum(['shrink_danger_zone', 'clear_danger_zone']),
+    targetArea: z.string(),
+    newRadiusKm: z.number(),
+  })),
+  publicUpdate: z.string(),
+  crisisStatus: z.enum(['resolved', 'requires_more_action']),
+});
