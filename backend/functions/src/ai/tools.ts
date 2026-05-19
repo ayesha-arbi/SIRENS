@@ -75,25 +75,73 @@ export const dispatchResourceTool = ai.defineTool(
   }
 );
 
-// ── 4. REROUTE TRAFFIC TOOL ──────────────────────────────────────────────────
+// ── 4. REROUTE TRAFFIC TOOL (GOOGLE MAPS INTEGRATION) ──────────────────────────
 export const rerouteTrafficTool = ai.defineTool(
   {
     name: 'rerouteTraffic',
-    description: 'Marks an area as a danger zone to reroute traffic in the Citizen App.',
+    description: 'Marks an area as a danger zone and generates a real alternate route using Google Maps Directions API.',
     inputSchema: z.object({
       crisisId: z.string(),
       dangerAreaName: z.string(),
-      alternateRouteSummary: z.string().optional(),
+      detourOrigin: z.string().describe('Safe starting point for the detour (e.g., "F-8 Markaz, Islamabad")'),
+      detourDestination: z.string().describe('Safe ending point for the detour (e.g., "G-11 Markaz, Islamabad")'),
     }),
   },
   async (input) => {
-    // Save danger zone for the Live Crisis Map
+    let mapData = {
+      distance: 'N/A',
+      duration: 'N/A',
+      polyline: '',
+      status: 'Maps API Skipped (No Key)'
+    };
+
+    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+
+    if (apiKey) {
+      try {
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(input.detourOrigin)}&destination=${encodeURIComponent(input.detourDestination)}&key=${apiKey}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.status === 'OK' && data.routes.length > 0) {
+          const route = data.routes[0];
+          const leg = route.legs[0];
+          
+          mapData = {
+            distance: leg.distance.text,
+            duration: leg.duration.text,
+            polyline: route.overview_polyline.points, // Encoded polyline for the frontend to draw
+            status: 'OK'
+          };
+          console.log(`[Google Maps] Generated route: ${mapData.distance} (${mapData.duration})`);
+        } else {
+          console.warn('[Google Maps] Directions API failed to find a route:', data.status);
+          mapData.status = data.status;
+        }
+      } catch (e) {
+        console.error('[Google Maps] API Request Failed:', e);
+        mapData.status = 'Fetch Error';
+      }
+    }
+
+    // Save danger zone and real routing data for the Live Crisis Map
     await db.collection('danger_zones').add({
-      ...input,
+      crisisId: input.crisisId,
+      dangerAreaName: input.dangerAreaName,
+      detourOrigin: input.detourOrigin,
+      detourDestination: input.detourDestination,
+      routeDistance: mapData.distance,
+      routeDuration: mapData.duration,
+      routePolyline: mapData.polyline,
+      apiStatus: mapData.status,
       active: true,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { success: true, message: `Traffic rerouted around ${input.dangerAreaName}.` };
+
+    return { 
+      success: true, 
+      message: `Traffic rerouted around ${input.dangerAreaName}. Alternate route generated: ${mapData.distance}, ETA: ${mapData.duration}.` 
+    };
   }
 );
 
