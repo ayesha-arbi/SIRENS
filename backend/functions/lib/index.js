@@ -36,7 +36,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerImpactEvaluation = exports.setAlertPreferences = exports.updateOnboardingData = exports.initializeUserProfile = exports.getPersonalizedFeed = exports.submitPollVote = exports.createCommunityReport = exports.getUploadUrl = void 0;
+exports.triggerImpactEvaluation = exports.resolveReport = exports.sendOfficialAlert = exports.getSOSList = exports.triggerSOS = exports.setAlertPreferences = exports.updateOnboardingData = exports.initializeUserProfile = exports.getPersonalizedFeed = exports.submitPollVote = exports.createCommunityReport = exports.getUploadUrl = void 0;
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 if (!admin.apps.length) {
@@ -268,6 +268,97 @@ exports.setAlertPreferences = (0, https_1.onCall)(async (request) => {
     catch (error) {
         console.error("Error updating preferences:", error);
         throw new https_1.HttpsError("internal", "Failed to update preferences.");
+    }
+});
+exports.triggerSOS = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+    const uid = request.auth.uid;
+    const { location, message = "Emergency signal triggered" } = request.data;
+    if (!location || typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+        throw new https_1.HttpsError("invalid-argument", "Valid location (lat/lng) is required for SOS.");
+    }
+    const sosId = db.collection("sos_signals").doc().id;
+    const sosSignal = {
+        sosId,
+        userId: uid,
+        location: new admin.firestore.GeoPoint(location.latitude, location.longitude),
+        message,
+        status: "pending",
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    try {
+        await db.collection("sos_signals").doc(sosId).set(sosSignal);
+        return { success: true, sosId };
+    }
+    catch (error) {
+        console.error("Error triggering SOS:", error);
+        throw new https_1.HttpsError("internal", "Failed to send SOS signal.");
+    }
+});
+exports.getSOSList = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+    try {
+        const snapshot = await db.collection("sos_signals")
+            .where("status", "==", "pending")
+            .orderBy("timestamp", "desc")
+            .get();
+        const signals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return { signals };
+    }
+    catch (error) {
+        console.error("Error fetching SOS list:", error);
+        throw new https_1.HttpsError("internal", "Failed to fetch SOS signals.");
+    }
+});
+exports.sendOfficialAlert = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+    const { title, message, city, severity } = request.data;
+    if (!title || !message || !city || !severity) {
+        throw new https_1.HttpsError("invalid-argument", "Title, Message, City, and Severity are required.");
+    }
+    const alertId = db.collection("alerts").doc().id;
+    const alert = {
+        alertId,
+        title,
+        message,
+        city,
+        severity: severity,
+        active: true,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    try {
+        await db.collection("alerts").doc(alertId).set(alert);
+        return { success: true, alertId };
+    }
+    catch (error) {
+        console.error("Error sending official alert:", error);
+        throw new https_1.HttpsError("internal", "Failed to send official alert.");
+    }
+});
+exports.resolveReport = (0, https_1.onCall)(async (request) => {
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "User must be authenticated.");
+    }
+    const { reportId } = request.data;
+    if (!reportId) {
+        throw new https_1.HttpsError("invalid-argument", "reportId is required.");
+    }
+    try {
+        await db.collection("reports").doc(reportId).update({
+            status: "resolved",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { success: true };
+    }
+    catch (error) {
+        console.error("Error resolving report:", error);
+        throw new https_1.HttpsError("internal", "Failed to resolve report.");
     }
 });
 // ============================================================================
