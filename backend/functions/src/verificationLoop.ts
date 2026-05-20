@@ -10,7 +10,10 @@ export const onVerificationUpdate = onDocumentUpdated('verification_requests/{re
   if (!before || !after) return;
 
   // We only care if yesVotes went up and hit our threshold (let's use 3 for the hackathon)
-  if (after.yesVotes >= 3 && before.yesVotes < 3 && after.status === 'awaiting_citizen_input') {
+  const yesVotesNow = after.yesVotes?.length || 0;
+  const yesVotesBefore = before.yesVotes?.length || 0;
+
+  if (yesVotesNow >= 3 && yesVotesBefore < 3 && after.status === 'awaiting_citizen_input') {
     
     const crisisId = after.crisisId;
     console.log(`[Feedback Loop] Crisis ${crisisId} verified by citizens! Escalating...`);
