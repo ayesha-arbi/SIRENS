@@ -161,8 +161,8 @@ export const requestVerificationTool = ai.defineTool(
     await db.collection('verification_requests').add({
       ...input,
       status: 'awaiting_citizen_input',
-      yesVotes: 0,
-      noVotes: 0,
+      yesVotes: [],
+      noVotes: [],
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
     return { success: true, message: `Verification request broadcasted to citizens in ${input.areaName}.` };
