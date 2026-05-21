@@ -124,21 +124,27 @@ exports.submitPollVote = (0, https_1.onCall)(async (request) => {
     if (vote !== "yes" && vote !== "no") {
         throw new https_1.HttpsError("invalid-argument", "vote must be 'yes' or 'no'.");
     }
-    const pollRef = db.collection("polls").doc(pollId);
     try {
         await db.runTransaction(async (tx) => {
-            const pollDoc = await tx.get(pollRef);
-            if (!pollDoc.exists) {
-                throw new https_1.HttpsError("not-found", "Poll not found.");
+            // First check if it's an AI verification request (Agent 4)
+            let targetRef = db.collection("verification_requests").doc(pollId);
+            let targetDoc = await tx.get(targetRef);
+            // Fallback to citizen-generated polls
+            if (!targetDoc.exists) {
+                targetRef = db.collection("polls").doc(pollId);
+                targetDoc = await tx.get(targetRef);
             }
-            const pollData = pollDoc.data();
-            const yesVotes = pollData.yesVotes || [];
-            const noVotes = pollData.noVotes || [];
+            if (!targetDoc.exists) {
+                throw new https_1.HttpsError("not-found", "Poll or Verification Request not found.");
+            }
+            const data = targetDoc.data();
+            const yesVotes = data.yesVotes || [];
+            const noVotes = data.noVotes || [];
             if (yesVotes.includes(uid) || noVotes.includes(uid)) {
                 throw new https_1.HttpsError("already-exists", "You have already voted on this poll.");
             }
             const field = vote === "yes" ? "yesVotes" : "noVotes";
-            tx.update(pollRef, { [field]: admin.firestore.FieldValue.arrayUnion(uid) });
+            tx.update(targetRef, { [field]: admin.firestore.FieldValue.arrayUnion(uid) });
         });
         return { success: true };
     }

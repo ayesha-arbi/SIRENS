@@ -111,8 +111,6 @@ export const submitPollVote = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "vote must be 'yes' or 'no'.");
   }
 
-  const pollRef = db.collection("polls").doc(pollId);
-
   try {
     await db.runTransaction(async (tx) => {
       // First check if it's an AI verification request (Agent 4)
