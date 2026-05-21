@@ -482,7 +482,7 @@ vercel deploy --prod
 | Name | Role |
 |---|---|
 | **Ayesha Zahid** | Full Stack Engineer & Designer |
-| **Ayesha Noman** | Full Stack Engineer |
+| **Ayesha Noman** | Full Stack AI Engineer |
 | **Maham Faisal** | Frontend Developer |
 | **Maria Kousar** | Full Stack AI Engineer |
 
